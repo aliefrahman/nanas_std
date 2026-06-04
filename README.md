@@ -46,17 +46,22 @@ A lightweight, standard, and minimalist PHP Native MVC (Model-View-Controller) F
 ## 🛠️ Installation & Setup
 
 ### 1. Prerequisites
+
 - **PHP**: `>= 8.0`
 - **NodeJS & npm**: For compiling CSS
 
 ### 2. Install Dependencies
+
 Run the following command to install the development dependencies (TailwindCSS CLI):
+
 ```bash
 npm install
 ```
 
 ### 3. Environment Configuration
+
 Duplicate the `.env.example` file to `.env` and set up your application URL and database credentials:
+
 ```ini
 APP_NAME="Nanas.std"
 APP_BASE_URL="http://localhost/indonesiatourguide/public"
@@ -73,24 +78,29 @@ DB_PASS="your_password"
 ## 💻 Development Commands
 
 ### Compile TailwindCSS v4
+
 For compilation:
+
 ```bash
 npm run build
 ```
 
 For real-time compilation during development (watch mode):
+
 ```bash
 npm run dev
 ```
 
 ### Run the Server
+
 You can run the built-in PHP server inside the root directory:
+
 ```bash
 php -S localhost:8000 -t public
 ```
+
 Then navigate to `http://localhost:8000` in your web browser.
 
 ---
 
 ## 📝 License
-Licensed under the [ISC License](LICENSE).
