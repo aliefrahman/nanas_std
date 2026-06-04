@@ -10,7 +10,9 @@
     </title>
 
     <!-- Compiled Tailwind CSS -->
-    <link rel="stylesheet" href="<?= route('/assets/css/style.css') ?>">
+    <!-- Menggunakan time(): Selalu memuat versi baru setiap kali reload halaman -->
+    <link rel="stylesheet" href="<?= route('/assets/css/style.css') ?>?v=<?= time() ?>">
+
 
 
 </head>
