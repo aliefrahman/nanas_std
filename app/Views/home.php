@@ -5,7 +5,7 @@
 
     <div class="max-w-7xl mx-auto px-6 text-center">
 
-        <h1 class="font-bold text-[48px] text-shadow-taupe-900">
+        <h1 class="font-bold text-[78px] text-shadow-taupe-900">
             Welcome,
             <?= htmlspecialchars($companyName) ?>.
         </h1>

@@ -14,7 +14,7 @@ class HomeController extends Controller
         $data = [
             'companyName' => 'Nanas.std',
             'tagline' => 'make your happy',
-            'description' => 'Framework PHP Native MVC',
+            'description' => 'A lightweight, standard, and minimalist PHP Native MVC (Model-View-Controller) Framework.',
 
         ];
 
