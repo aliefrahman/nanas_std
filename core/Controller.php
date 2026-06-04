@@ -3,9 +3,17 @@
 namespace Core;
 
 use Core\Config;
+use Core\Request;
 
 class Controller
 {
+    protected Request $request;
+
+    public function __construct()
+    {
+        $this->request = new Request();
+    }
+
     /**
      * Render view file
      *

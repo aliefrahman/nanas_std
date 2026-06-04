@@ -6,27 +6,74 @@ class Router {
     protected array $routes = [];
     protected ?string $lastMethod = null;
     protected ?string $lastPath = null;
+    protected array $globalMiddlewares = [
+        \App\Middlewares\VerifyCsrfToken::class
+    ];
+    
+    // Group configuration active stack
+    protected array $groupStack = [];
 
+    /**
+     * Define a group of routes sharing prefix and/or middleware.
+     */
+    public function group(array $attributes, callable $callback): void
+    {
+        $this->groupStack[] = $attributes;
+        $callback($this);
+        array_pop($this->groupStack);
+    }
+
+    /**
+     * Register a GET route.
+     */
     public function get(string $path, $handler): self {
-        $this->routes['GET'][$path] = [
-            'handler' => $handler,
-            'middlewares' => []
-        ];
-        $this->lastMethod = 'GET';
-        $this->lastPath = $path;
-        return $this;
+        return $this->addRoute('GET', $path, $handler);
     }
 
+    /**
+     * Register a POST route.
+     */
     public function post(string $path, $handler): self {
-        $this->routes['POST'][$path] = [
+        return $this->addRoute('POST', $path, $handler);
+    }
+
+    /**
+     * Register route internally, merging active group prefix and middleware.
+     */
+    protected function addRoute(string $method, string $path, $handler): self
+    {
+        $prefix = '';
+        $middlewares = [];
+
+        foreach ($this->groupStack as $group) {
+            if (isset($group['prefix'])) {
+                $prefix .= '/' . trim($group['prefix'], '/');
+            }
+            if (isset($group['middleware'])) {
+                $middlewares = array_merge($middlewares, (array)$group['middleware']);
+            }
+        }
+
+        // Join prefix and path safely
+        $path = '/' . trim($prefix . '/' . trim($path, '/'), '/');
+        if ($path === '') {
+            $path = '/';
+        }
+
+        $this->routes[$method][$path] = [
             'handler' => $handler,
-            'middlewares' => []
+            'middlewares' => $middlewares
         ];
-        $this->lastMethod = 'POST';
+
+        $this->lastMethod = $method;
         $this->lastPath = $path;
+
         return $this;
     }
 
+    /**
+     * Attach middleware to the last registered route.
+     */
     public function middleware(array $middlewares): self {
         if ($this->lastMethod && $this->lastPath) {
             $this->routes[$this->lastMethod][$this->lastPath]['middlewares'] = array_merge(
@@ -37,6 +84,9 @@ class Router {
         return $this;
     }
 
+    /**
+     * Resolve the request URI and run the matching route.
+     */
     public function resolve(): void {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -59,11 +109,37 @@ class Router {
             $uri = '/';
         }
 
+        // 1. Static Route Match
         $route = $this->routes[$method][$uri] ?? null;
+        $params = [];
+
+        // 2. Dynamic Route Match (Regex)
+        if (!$route) {
+            foreach ($this->routes[$method] ?? [] as $routePath => $routeConfig) {
+                if (strpos($routePath, '{') !== false) {
+                    // Convert {param} to pattern ([^/]+)
+                    $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '([^/]+)', $routePath);
+                    $regex = '#^' . $pattern . '$#';
+
+                    if (preg_match($regex, $uri, $matches)) {
+                        $route = $routeConfig;
+                        
+                        // Extract parameter values
+                        array_shift($matches);
+                        preg_match_all('/\{([a-zA-Z0-9_]+)\}/', $routePath, $paramNames);
+                        $paramNames = $paramNames[1];
+
+                        foreach ($paramNames as $index => $name) {
+                            $params[$name] = $matches[$index] ?? null;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
 
         if (!$route) {
             http_response_code(404);
-            // Render a beautiful 404 page or simple message
             echo "404 Not Found";
             return;
         }
@@ -72,7 +148,17 @@ class Router {
         $handler = is_array($route) && isset($route['handler']) ? $route['handler'] : $route;
         $middlewares = is_array($route) && isset($route['middlewares']) ? $route['middlewares'] : [];
 
-        // Run middlewares sequentially
+        // Run global middlewares first
+        foreach ($this->globalMiddlewares as $middlewareClass) {
+            if (class_exists($middlewareClass)) {
+                $middleware = new $middlewareClass();
+                if (method_exists($middleware, 'handle')) {
+                    $middleware->handle();
+                }
+            }
+        }
+
+        // Run route-specific middlewares sequentially
         foreach ($middlewares as $middlewareClass) {
             if (class_exists($middlewareClass)) {
                 $middleware = new $middlewareClass();
@@ -82,8 +168,12 @@ class Router {
             }
         }
 
+        $request = new Request();
+        // Dynamic parameters passed first, Request object passed last
+        $arguments = array_merge(array_values($params), [$request]);
+
         if (is_callable($handler)) {
-            call_user_func($handler);
+            call_user_func_array($handler, $arguments);
             return;
         }
 
@@ -92,7 +182,7 @@ class Router {
             if (class_exists($controllerClass)) {
                 $controller = new $controllerClass();
                 if (method_exists($controller, $methodName)) {
-                    $controller->$methodName();
+                    call_user_func_array([$controller, $methodName], $arguments);
                     return;
                 }
             }
