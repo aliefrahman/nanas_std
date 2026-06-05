@@ -64,7 +64,7 @@ function old(string $key, $default = null)
     return esc($old);
 }
 
-function errors(string $key = null)
+function errors(?string $key = null)
 {
     if ($key === null) {
         return $_SESSION['_errors'] ?? [];
